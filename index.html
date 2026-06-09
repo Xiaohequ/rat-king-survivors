@@ -6,101 +6,119 @@
     <title>Rat King Survivors</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
+        
         html, body {
             width: 100%;
             height: 100%;
             overflow: hidden;
-            background-color: #0f0f1a;
+            background: #000;
             touch-action: none;
-        }
-        body {
             position: fixed;
             top: 0;
             left: 0;
         }
+        
         #gameContainer {
+            width: 100%;
+            height: 100%;
             position: relative;
-            width: 100vw;
-            height: 100vh;
-            overflow: hidden;
         }
+        
         canvas {
             display: block;
             width: 100%;
             height: 100%;
-            background-color: #1a1a2e;
+            background: #1a1a2e;
         }
+        
         .screen-overlay {
             position: absolute;
             top: 0; left: 0;
             width: 100%; height: 100%;
-            background: rgba(15, 15, 26, 0.95);
+            background: rgba(0, 0, 0, 0.95);
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
             color: #fff;
             z-index: 100;
-            pointer-events: auto;
         }
+        
         .screen-overlay h1 {
             font-size: 2rem;
             color: #a855f7;
-            text-shadow: 0 0 20px #a855f7;
             margin-bottom: 20px;
             text-align: center;
         }
+        
         .btn {
-            padding: 12px 30px;
-            font-size: 1.2rem;
+            padding: 15px 40px;
+            font-size: 1.3rem;
             background: linear-gradient(135deg, #a855f7, #7c3aed);
             color: white;
             border: none;
             border-radius: 8px;
             cursor: pointer;
             margin: 10px;
-            transition: transform 0.2s;
-            pointer-events: auto;
             -webkit-tap-highlight-color: transparent;
         }
-        .btn:hover { transform: scale(1.05); }
-        .btn:active { transform: scale(0.95); }
         
-        /* UI HUD */
-        #uiOverlay {
-            position: absolute;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            pointer-events: none;
-            z-index: 50;
-        }
-        .hud-top {
+        #hud {
             position: absolute;
             top: 10px; left: 10px; right: 10px;
             display: flex;
             justify-content: space-between;
             color: white;
-            font-size: 12px;
+            font-size: 13px;
+            z-index: 50;
+            pointer-events: none;
         }
+        
         .hp-bar {
-            width: 150px;
-            height: 15px;
+            width: 160px;
+            height: 16px;
             background: #333;
             border-radius: 8px;
             overflow: hidden;
             border: 2px solid #a855f7;
         }
+        
         .hp-fill {
             height: 100%;
             background: linear-gradient(90deg, #ef4444, #f59e0b);
-            transition: width 0.3s;
         }
         
-        @media (min-width: 768px) {
-            .screen-overlay h1 { font-size: 2.5rem; }
-            .btn { padding: 15px 40px; font-size: 1.5rem; }
-            .hud-top { font-size: 14px; }
-            .hp-bar { width: 200px; height: 20px; }
+        /* JOYSTICK - Ultra simple */
+        #joystickContainer {
+            position: fixed;
+            bottom: 30px;
+            left: 0;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            z-index: 999999;
+            pointer-events: none;
+        }
+        
+        #joystick {
+            width: 120px;
+            height: 120px;
+            background: rgba(255, 0, 0, 0.4);
+            border: 4px solid rgba(255, 0, 0, 0.9);
+            border-radius: 50%;
+            position: relative;
+            pointer-events: auto;
+        }
+        
+        #joystickKnob {
+            width: 50px;
+            height: 50px;
+            background: rgba(255, 0, 0, 0.9);
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
         }
     </style>
 </head>
@@ -108,17 +126,15 @@
     <div id="gameContainer">
         <canvas id="gameCanvas"></canvas>
         
-        <div id="uiOverlay">
-            <div class="hud-top">
-                <div>
-                    <div class="hp-bar"><div class="hp-fill" id="hpFill"></div></div>
-                    <div id="hpText">HP: 100/100</div>
-                </div>
-                <div style="text-align: right;">
-                    <div id="timeDisplay">0:00</div>
-                    <div id="killDisplay">Kills: 0</div>
-                    <div id="ratDisplay">Rats: 20</div>
-                </div>
+        <div id="hud">
+            <div>
+                <div class="hp-bar"><div class="hp-fill" id="hpFill"></div></div>
+                <div id="hpText">HP: 100/100</div>
+            </div>
+            <div style="text-align: right;">
+                <div id="timeDisplay">0:00</div>
+                <div id="killDisplay">Kills: 0</div>
+                <div id="ratDisplay">Rats: 20</div>
             </div>
         </div>
 
@@ -126,64 +142,29 @@
             <h1>🐀 Rat King Survivors</h1>
             <p style="margin-bottom: 20px; color: #aaa; text-align: center; padding: 0 20px;">Survive with your rat swarm!</p>
             <button class="btn" id="startBtn">Start Game</button>
-            <p style="margin-top: 20px; color: #666; font-size: 12px;">Desktop: WASD | Mobile: Joystick</p>
         </div>
 
         <div id="upgradeMenu" class="screen-overlay" style="display: none;">
             <h2 style="color: #a855f7; margin-bottom: 20px;">Choose Upgrade</h2>
-            <div id="upgradeCards" style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; padding: 0 10px;"></div>
+            <div id="upgradeCards" style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: center;"></div>
         </div>
 
         <div id="gameOverScreen" class="screen-overlay" style="display: none;">
             <h1 style="color: #ef4444;">Game Over</h1>
-            <div id="finalStats" style="margin: 20px 0; font-size: 1.2rem; text-align: center;"></div>
+            <div id="finalStats" style="margin: 20px 0; font-size: 1.2rem;"></div>
             <button class="btn" id="restartBtn">Play Again</button>
+        </div>
+    </div>
+    
+    <div id="joystickContainer">
+        <div id="joystick">
+            <div id="joystickKnob"></div>
         </div>
     </div>
 
     <script>
-        // --- JOYSTICK CREATION ---
-        function createJoystick() {
-            const joystickZone = document.createElement('div');
-            joystickZone.id = 'joystickZone';
-            joystickZone.style.cssText = `
-                position: fixed !important;
-                bottom: 30px !important;
-                left: 50% !important;
-                transform: translateX(-50%) !important;
-                width: 120px !important;
-                height: 120px !important;
-                background: rgba(168, 85, 247, 0.3) !important;
-                border: 3px solid rgba(168, 85, 247, 0.8) !important;
-                border-radius: 50% !important;
-                z-index: 99999 !important;
-                pointer-events: auto !important;
-                display: block !important;
-                visibility: visible !important;
-                opacity: 1 !important;
-            `;
-            
-            const joystickKnob = document.createElement('div');
-            joystickKnob.id = 'joystickKnob';
-            joystickKnob.style.cssText = `
-                position: absolute !important;
-                width: 50px !important;
-                height: 50px !important;
-                background: rgba(168, 85, 247, 0.9) !important;
-                border-radius: 50% !important;
-                top: 50% !important;
-                left: 50% !important;
-                transform: translate(-50%, -50%) !important;
-            `;
-            
-            joystickZone.appendChild(joystickKnob);
-            document.body.appendChild(joystickZone);
-            
-            return { zone: joystickZone, knob: joystickKnob };
-        }
-
         // --- CONFIGURATION ---
-        let CONFIG = {
+        const CONFIG = {
             PLAYER_SPEED: 2.5,
             PLAYER_AURA: 80,
             PLAYER_HP: 100,
@@ -203,25 +184,13 @@
         // --- GAME STATE ---
         let canvas, ctx, gameState = 'start';
         let player = null;
-        let rats = [], enemies = [], particles = [];
+        let rats = [], enemies = [];
         let ratCount, ratDamage, ratSpeed, ratAttackRate;
         let survivalTime = 0, killCount = 0, waveNumber = 0;
         let enemySpawnTimer = 0, upgradeTimer = 0;
         let keys = {};
-        let joystick = { active: false, dx: 0, dy: 0 };
+        let joystick = { dx: 0, dy: 0 };
         let lastTime = 0;
-        let joystickElements = null;
-
-        function createPlayer() {
-            return {
-                x: canvas.width / 2,
-                y: canvas.height / 2,
-                hp: CONFIG.PLAYER_HP,
-                maxHp: CONFIG.PLAYER_HP,
-                speed: CONFIG.PLAYER_SPEED,
-                auraRadius: CONFIG.PLAYER_AURA
-            };
-        }
 
         // --- INITIALIZATION ---
         function init() {
@@ -230,12 +199,6 @@
             
             resizeCanvas();
             window.addEventListener('resize', resizeCanvas);
-            
-            // Create joystick dynamically
-            joystickElements = createJoystick();
-            
-            // Initialize player (needed for render)
-            player = createPlayer();
             
             setupControls();
             setupJoystick();
@@ -247,15 +210,10 @@
         }
 
         function resizeCanvas() {
-            const container = document.getElementById('gameContainer');
-            const w = container.clientWidth;
-            const h = container.clientHeight;
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
             
-            canvas.width = w;
-            canvas.height = h;
-            
-            // Update config for new screen size
-            const scale = Math.min(w / 800, h / 600);
+            const scale = Math.min(canvas.width / 800, canvas.height / 600);
             CONFIG.PLAYER_SPEED = 2.5 * scale;
             CONFIG.PLAYER_AURA = 80 * scale;
             CONFIG.RAT_RADIUS = Math.max(2, 4 * scale);
@@ -269,8 +227,8 @@
         }
 
         function setupJoystick() {
-            const zone = joystickElements.zone;
-            const knob = joystickElements.knob;
+            const joystick = document.getElementById('joystick');
+            const knob = document.getElementById('joystickKnob');
             let isDragging = false;
 
             const handleStart = (e) => {
@@ -278,11 +236,13 @@
                 e.preventDefault();
                 e.stopPropagation();
             };
+            
             const handleMove = (e) => {
                 if (!isDragging) return;
                 e.preventDefault();
                 e.stopPropagation();
-                const rect = zone.getBoundingClientRect();
+                
+                const rect = joystick.getBoundingClientRect();
                 const cx = rect.left + rect.width / 2;
                 const cy = rect.top + rect.height / 2;
                 const clientX = e.touches ? e.touches[0].clientX : e.clientX;
@@ -304,6 +264,7 @@
                 joystick.dx = dx / maxDist;
                 joystick.dy = dy / maxDist;
             };
+            
             const handleEnd = () => {
                 isDragging = false;
                 joystick.dx = 0;
@@ -312,14 +273,13 @@
                 knob.style.top = '50%';
             };
 
-            zone.addEventListener('mousedown', handleStart);
-            zone.addEventListener('mousemove', handleMove);
-            zone.addEventListener('mouseup', handleEnd);
-            zone.addEventListener('mouseleave', handleEnd);
+            joystick.addEventListener('mousedown', handleStart);
+            document.addEventListener('mousemove', handleMove);
+            document.addEventListener('mouseup', handleEnd);
             
-            zone.addEventListener('touchstart', handleStart, {passive: false});
-            zone.addEventListener('touchmove', handleMove, {passive: false});
-            zone.addEventListener('touchend', handleEnd);
+            joystick.addEventListener('touchstart', handleStart, {passive: false});
+            document.addEventListener('touchmove', handleMove, {passive: false});
+            document.addEventListener('touchend', handleEnd);
         }
 
         // --- GAME FLOW ---
@@ -330,11 +290,17 @@
         }
 
         function resetGame() {
-            player = createPlayer();
+            player = {
+                x: canvas.width / 2,
+                y: canvas.height / 2,
+                hp: CONFIG.PLAYER_HP,
+                maxHp: CONFIG.PLAYER_HP,
+                speed: CONFIG.PLAYER_SPEED,
+                auraRadius: CONFIG.PLAYER_AURA
+            };
             
             rats = [];
             enemies = [];
-            particles = [];
             
             ratCount = CONFIG.RAT_COUNT_INIT;
             ratDamage = CONFIG.RAT_DAMAGE;
@@ -380,14 +346,13 @@
             startGame();
         }
 
-        // --- UPDATE LOGIC ---
+        // --- UPDATE ---
         function update(dt) {
             if (gameState !== 'playing') return;
             
             survivalTime += dt;
             upgradeTimer += dt;
             
-            // Player Movement
             let mx = 0, my = 0;
             if (keys['w'] || keys['arrowup']) my -= 1;
             if (keys['s'] || keys['arrowdown']) my += 1;
@@ -526,18 +491,15 @@
         function render() {
             if (!player) return;
             
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.fillStyle = '#1a1a2e';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             
-            // Draw Aura
             ctx.beginPath();
             ctx.arc(player.x, player.y, player.auraRadius, 0, Math.PI * 2);
             ctx.strokeStyle = 'rgba(168, 85, 247, 0.3)';
             ctx.lineWidth = 2;
             ctx.stroke();
             
-            // Draw Rats
             rats.forEach(r => {
                 if (!r.alive) return;
                 ctx.beginPath();
@@ -546,7 +508,6 @@
                 ctx.fill();
             });
             
-            // Draw Enemies
             enemies.forEach(e => {
                 ctx.beginPath();
                 ctx.arc(e.x, e.y, e.radius, 0, Math.PI * 2);
@@ -558,19 +519,12 @@
                 ctx.fillRect(e.x - 10, e.y - 15, 20 * (e.hp / e.maxHp), 3);
             });
             
-            // Draw Player
             ctx.beginPath();
             ctx.arc(player.x, player.y, 15, 0, Math.PI * 2);
             ctx.fillStyle = '#ff0000';
             ctx.fill();
-            ctx.strokeStyle = '#ffffff';
+            ctx.strokeStyle = '#fff';
             ctx.lineWidth = 3;
-            ctx.stroke();
-            
-            ctx.beginPath();
-            ctx.arc(player.x, player.y, 20, 0, Math.PI * 2);
-            ctx.strokeStyle = 'rgba(255, 0, 0, 0.3)';
-            ctx.lineWidth = 5;
             ctx.stroke();
         }
 
