@@ -6,24 +6,28 @@
     <title>Rat King Survivors</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            background-color: #0f0f1a;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            font-family: 'Arial', sans-serif;
+        html, body {
+            width: 100%;
+            height: 100%;
             overflow: hidden;
+            background-color: #0f0f1a;
             touch-action: none;
+        }
+        body {
+            position: fixed;
+            top: 0;
+            left: 0;
         }
         #gameContainer {
             position: relative;
-            border: 3px solid #a855f7;
-            border-radius: 8px;
-            box-shadow: 0 0 30px rgba(168, 85, 247, 0.3);
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
         }
         canvas {
             display: block;
+            width: 100%;
+            height: 100%;
             background-color: #1a1a2e;
         }
         .screen-overlay {
@@ -40,14 +44,15 @@
             pointer-events: auto;
         }
         .screen-overlay h1 {
-            font-size: 2.5rem;
+            font-size: 2rem;
             color: #a855f7;
             text-shadow: 0 0 20px #a855f7;
             margin-bottom: 20px;
+            text-align: center;
         }
         .btn {
-            padding: 15px 40px;
-            font-size: 1.5rem;
+            padding: 12px 30px;
+            font-size: 1.2rem;
             background: linear-gradient(135deg, #a855f7, #7c3aed);
             color: white;
             border: none;
@@ -56,8 +61,10 @@
             margin: 10px;
             transition: transform 0.2s;
             pointer-events: auto;
+            -webkit-tap-highlight-color: transparent;
         }
         .btn:hover { transform: scale(1.05); }
+        .btn:active { transform: scale(0.95); }
         
         /* UI HUD */
         #uiOverlay {
@@ -73,13 +80,13 @@
             display: flex;
             justify-content: space-between;
             color: white;
-            font-size: 14px;
+            font-size: 12px;
         }
         .hp-bar {
-            width: 200px;
-            height: 20px;
+            width: 150px;
+            height: 15px;
             background: #333;
-            border-radius: 10px;
+            border-radius: 8px;
             overflow: hidden;
             border: 2px solid #a855f7;
         }
@@ -94,8 +101,8 @@
             position: absolute;
             bottom: 20px;
             left: 20px;
-            width: 120px;
-            height: 120px;
+            width: 100px;
+            height: 100px;
             background: rgba(168, 85, 247, 0.2);
             border: 2px solid rgba(168, 85, 247, 0.5);
             border-radius: 50%;
@@ -104,12 +111,21 @@
         }
         #joystickKnob {
             position: absolute;
-            width: 50px;
-            height: 50px;
+            width: 40px;
+            height: 40px;
             background: rgba(168, 85, 247, 0.8);
             border-radius: 50%;
             top: 50%; left: 50%;
             transform: translate(-50%, -50%);
+        }
+        
+        @media (min-width: 768px) {
+            .screen-overlay h1 { font-size: 2.5rem; }
+            .btn { padding: 15px 40px; font-size: 1.5rem; }
+            .hud-top { font-size: 14px; }
+            .hp-bar { width: 200px; height: 20px; }
+            #joystickZone { width: 120px; height: 120px; }
+            #joystickKnob { width: 50px; height: 50px; }
         }
     </style>
 </head>
@@ -134,28 +150,26 @@
 
         <div id="startScreen" class="screen-overlay">
             <h1>🐀 Rat King Survivors</h1>
-            <p style="margin-bottom: 20px; color: #aaa;">Survive with your rat swarm!</p>
+            <p style="margin-bottom: 20px; color: #aaa; text-align: center; padding: 0 20px;">Survive with your rat swarm!</p>
             <button class="btn" id="startBtn">Start Game</button>
             <p style="margin-top: 20px; color: #666; font-size: 12px;">Desktop: WASD | Mobile: Joystick</p>
         </div>
 
         <div id="upgradeMenu" class="screen-overlay" style="display: none;">
             <h2 style="color: #a855f7; margin-bottom: 20px;">Choose Upgrade</h2>
-            <div id="upgradeCards" style="display: flex; gap: 15px; flex-wrap: wrap; justify-content: center;"></div>
+            <div id="upgradeCards" style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; padding: 0 10px;"></div>
         </div>
 
         <div id="gameOverScreen" class="screen-overlay" style="display: none;">
             <h1 style="color: #ef4444;">Game Over</h1>
-            <div id="finalStats" style="margin: 20px 0; font-size: 1.2rem;"></div>
+            <div id="finalStats" style="margin: 20px 0; font-size: 1.2rem; text-align: center;"></div>
             <button class="btn" id="restartBtn">Play Again</button>
         </div>
     </div>
 
     <script>
         // --- CONFIGURATION ---
-        const CONFIG = {
-            WIDTH: 800,
-            HEIGHT: 600,
+        let CONFIG = {
             PLAYER_SPEED: 2.5,
             PLAYER_AURA: 80,
             PLAYER_HP: 100,
@@ -193,39 +207,32 @@
             setupControls();
             setupJoystick();
             
-            // Start Loop
+            document.getElementById('startBtn').addEventListener('click', startGame);
+            document.getElementById('restartBtn').addEventListener('click', restartGame);
+            
             requestAnimationFrame(gameLoop);
         }
 
         function resizeCanvas() {
             const container = document.getElementById('gameContainer');
-            const maxW = window.innerWidth - 20;
-            const maxH = window.innerHeight - 20;
-            const aspect = CONFIG.WIDTH / CONFIG.HEIGHT;
+            const w = container.clientWidth;
+            const h = container.clientHeight;
             
-            let w = maxW;
-            let h = w / aspect;
+            canvas.width = w;
+            canvas.height = h;
             
-            if (h > maxH) {
-                h = maxH;
-                w = h * aspect;
-            }
-            
-            container.style.width = w + 'px';
-            container.style.height = h + 'px';
-            canvas.width = CONFIG.WIDTH;
-            canvas.height = CONFIG.HEIGHT;
-            canvas.style.width = w + 'px';
-            canvas.style.height = h + 'px';
+            // Update config for new screen size
+            const scale = Math.min(w / 800, h / 600);
+            CONFIG.PLAYER_SPEED = 2.5 * scale;
+            CONFIG.PLAYER_AURA = 80 * scale;
+            CONFIG.RAT_RADIUS = Math.max(2, 4 * scale);
+            CONFIG.ENEMY_RADIUS = Math.max(5, 8 * scale);
         }
 
         // --- CONTROLS ---
         function setupControls() {
             document.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
             document.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
-            
-            document.getElementById('startBtn').addEventListener('click', startGame);
-            document.getElementById('restartBtn').addEventListener('click', restartGame);
         }
 
         function setupJoystick() {
@@ -289,8 +296,8 @@
 
         function resetGame() {
             player = {
-                x: CONFIG.WIDTH / 2,
-                y: CONFIG.HEIGHT / 2,
+                x: canvas.width / 2,
+                y: canvas.height / 2,
                 hp: CONFIG.PLAYER_HP,
                 maxHp: CONFIG.PLAYER_HP,
                 speed: CONFIG.PLAYER_SPEED,
@@ -359,7 +366,6 @@
             if (keys['a'] || keys['arrowleft']) mx -= 1;
             if (keys['d'] || keys['arrowright']) mx += 1;
             
-            // Joystick override
             if (joystick.dx !== 0 || joystick.dy !== 0) {
                 mx = joystick.dx;
                 my = joystick.dy;
@@ -371,23 +377,19 @@
                 player.y += (my/len) * player.speed * (dt/16);
             }
             
-            // Keep player in bounds
-            player.x = Math.max(player.auraRadius, Math.min(CONFIG.WIDTH - player.auraRadius, player.x));
-            player.y = Math.max(player.auraRadius, Math.min(CONFIG.HEIGHT - player.auraRadius, player.y));
+            player.x = Math.max(player.auraRadius, Math.min(canvas.width - player.auraRadius, player.x));
+            player.y = Math.max(player.auraRadius, Math.min(canvas.height - player.auraRadius, player.y));
             
-            // Spawn Enemies
             enemySpawnTimer += dt;
             if (enemySpawnTimer >= CONFIG.ENEMY_SPAWN_INTERVAL && enemies.length < CONFIG.MAX_ENEMIES) {
                 spawnEnemy();
                 enemySpawnTimer = 0;
             }
             
-            // Update Rats (Swarm AI)
             rats.forEach(rat => {
                 if (!rat.alive) return;
                 rat.attackCooldown -= dt;
                 
-                // Find nearest enemy
                 let nearest = null, nearDist = Infinity;
                 enemies.forEach(e => {
                     const d = Math.sqrt((rat.x-e.x)**2 + (rat.y-e.y)**2);
@@ -395,7 +397,6 @@
                 });
                 
                 if (nearest && nearDist < 150) {
-                    // Attack mode
                     const angle = Math.atan2(nearest.y - rat.y, nearest.x - rat.x);
                     rat.vx = Math.cos(angle) * ratSpeed * (dt/16);
                     rat.vy = Math.sin(angle) * ratSpeed * (dt/16);
@@ -409,7 +410,6 @@
                         }
                     }
                 } else {
-                    // Follow player (Orbit)
                     rat.orbitAngle += (0.02 + Math.random()*0.01) * rat.orbitDir * (dt/16);
                     const targetX = player.x + Math.cos(rat.orbitAngle) * player.auraRadius * 0.8;
                     const targetY = player.y + Math.sin(rat.orbitAngle) * player.auraRadius * 0.8;
@@ -423,26 +423,22 @@
                 rat.y += rat.vy;
             });
             
-            // Update Enemies
             enemies.forEach(e => {
                 const angle = Math.atan2(player.y - e.y, player.x - e.x);
                 e.x += Math.cos(angle) * e.speed * (dt/16);
                 e.y += Math.sin(angle) * e.speed * (dt/16);
                 
-                // Damage player on contact
                 const dist = Math.sqrt((e.x-player.x)**2 + (e.y-player.y)**2);
                 if (dist < player.auraRadius + e.radius) {
                     player.hp -= 0.5 * (dt/16);
                 }
             });
             
-            // Upgrade Check
             if (upgradeTimer >= CONFIG.UPGRADE_INTERVAL) {
                 showUpgradeMenu();
                 upgradeTimer = 0;
             }
             
-            // Check Death
             if (player.hp <= 0) gameOver();
             
             updateUI();
@@ -451,10 +447,10 @@
         function spawnEnemy() {
             let x, y;
             const side = Math.floor(Math.random() * 4);
-            if (side === 0) { x = 0; y = Math.random() * CONFIG.HEIGHT; }
-            else if (side === 1) { x = CONFIG.WIDTH; y = Math.random() * CONFIG.HEIGHT; }
-            else if (side === 2) { x = Math.random() * CONFIG.WIDTH; y = 0; }
-            else { x = Math.random() * CONFIG.WIDTH; y = CONFIG.HEIGHT; }
+            if (side === 0) { x = 0; y = Math.random() * canvas.height; }
+            else if (side === 1) { x = canvas.width; y = Math.random() * canvas.height; }
+            else if (side === 2) { x = Math.random() * canvas.width; y = 0; }
+            else { x = Math.random() * canvas.width; y = canvas.height; }
             
             enemies.push({
                 x, y,
@@ -486,8 +482,8 @@
             choices.forEach(up => {
                 const card = document.createElement('div');
                 card.className = 'btn';
-                card.style.cssText = 'padding: 20px; cursor: pointer; text-align: center;';
-                card.innerHTML = `<div style="font-size: 2rem;">${up.icon}</div><div style="font-weight: bold;">${up.name}</div><div style="font-size: 0.8rem; color: #ccc;">${up.desc}</div>`;
+                card.style.cssText = 'padding: 15px; cursor: pointer; text-align: center;';
+                card.innerHTML = `<div style="font-size: 1.5rem;">${up.icon}</div><div style="font-weight: bold; font-size: 0.9rem;">${up.name}</div><div style="font-size: 0.7rem; color: #ccc;">${up.desc}</div>`;
                 card.onclick = () => {
                     up.apply();
                     menu.style.display = 'none';
@@ -500,17 +496,16 @@
 
         // --- RENDER ---
         function render() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.fillStyle = '#1a1a2e';
-            ctx.fillRect(0, 0, CONFIG.WIDTH, CONFIG.HEIGHT);
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
             
-            // Draw Aura
             ctx.beginPath();
             ctx.arc(player.x, player.y, player.auraRadius, 0, Math.PI * 2);
             ctx.strokeStyle = 'rgba(168, 85, 247, 0.3)';
             ctx.lineWidth = 2;
             ctx.stroke();
             
-            // Draw Rats
             rats.forEach(r => {
                 if (!r.alive) return;
                 ctx.beginPath();
@@ -519,20 +514,17 @@
                 ctx.fill();
             });
             
-            // Draw Enemies
             enemies.forEach(e => {
                 ctx.beginPath();
                 ctx.arc(e.x, e.y, e.radius, 0, Math.PI * 2);
                 ctx.fillStyle = '#ef4444';
                 ctx.fill();
-                // HP Bar
                 ctx.fillStyle = '#333';
                 ctx.fillRect(e.x - 10, e.y - 15, 20, 3);
                 ctx.fillStyle = '#22c55e';
                 ctx.fillRect(e.x - 10, e.y - 15, 20 * (e.hp / e.maxHp), 3);
             });
             
-            // Draw Player
             ctx.beginPath();
             ctx.arc(player.x, player.y, 10, 0, Math.PI * 2);
             ctx.fillStyle = '#f59e0b';
