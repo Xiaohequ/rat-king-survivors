@@ -110,6 +110,27 @@
             z-index: 60;
             pointer-events: auto;
         }
+        
+        @media (max-width: 400px) {
+            #joystickZone {
+                width: 80px;
+                height: 80px;
+                bottom: 15px;
+            }
+            #joystickKnob {
+                width: 32px;
+                height: 32px;
+            }
+        }
+        
+        @media (min-width: 768px) {
+            #joystickZone {
+                left: 30px;
+                transform: none;
+                width: 120px;
+                height: 120px;
+            }
+        }
         #joystickKnob {
             position: absolute;
             width: 40px;
