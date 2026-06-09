@@ -88,7 +88,7 @@
             background: linear-gradient(90deg, #ef4444, #f59e0b);
         }
         
-        /* JOYSTICK - Ultra simple */
+        /* JOYSTICK */
         #joystickContainer {
             position: fixed;
             bottom: 30px;
@@ -184,12 +184,12 @@
         // --- GAME STATE ---
         let canvas, ctx, gameState = 'start';
         let player = null;
+        let camera = { x: 0, y: 0 };
         let rats = [], enemies = [];
         let ratCount, ratDamage, ratSpeed, ratAttackRate;
         let survivalTime = 0, killCount = 0, waveNumber = 0;
         let enemySpawnTimer = 0, upgradeTimer = 0;
         let keys = {};
-        let joystick = { dx: 0, dy: 0 };
         let lastTime = 0;
 
         // --- INITIALIZATION ---
@@ -291,13 +291,16 @@
 
         function resetGame() {
             player = {
-                x: canvas.width / 2,
-                y: canvas.height / 2,
+                x: 0,
+                y: 0,
                 hp: CONFIG.PLAYER_HP,
                 maxHp: CONFIG.PLAYER_HP,
                 speed: CONFIG.PLAYER_SPEED,
                 auraRadius: CONFIG.PLAYER_AURA
             };
+            
+            camera.x = -canvas.width / 2;
+            camera.y = -canvas.height / 2;
             
             rats = [];
             enemies = [];
@@ -370,8 +373,11 @@
                 player.y += (my/len) * player.speed * (dt/16);
             }
             
-            player.x = Math.max(player.auraRadius, Math.min(canvas.width - player.auraRadius, player.x));
-            player.y = Math.max(player.auraRadius, Math.min(canvas.height - player.auraRadius, player.y));
+            // Update camera to follow player (smooth)
+            const targetCamX = player.x - canvas.width / 2;
+            const targetCamY = player.y - canvas.height / 2;
+            camera.x += (targetCamX - camera.x) * 0.1;
+            camera.y += (targetCamY - camera.y) * 0.1;
             
             enemySpawnTimer += dt;
             if (enemySpawnTimer >= CONFIG.ENEMY_SPAWN_INTERVAL && enemies.length < CONFIG.MAX_ENEMIES) {
@@ -439,11 +445,23 @@
 
         function spawnEnemy() {
             let x, y;
+            const buffer = 100;
+            
+            // Spawn outside camera view
             const side = Math.floor(Math.random() * 4);
-            if (side === 0) { x = 0; y = Math.random() * canvas.height; }
-            else if (side === 1) { x = canvas.width; y = Math.random() * canvas.height; }
-            else if (side === 2) { x = Math.random() * canvas.width; y = 0; }
-            else { x = Math.random() * canvas.width; y = canvas.height; }
+            if (side === 0) { // Left
+                x = camera.x - buffer;
+                y = camera.y + Math.random() * canvas.height;
+            } else if (side === 1) { // Right
+                x = camera.x + canvas.width + buffer;
+                y = camera.y + Math.random() * canvas.height;
+            } else if (side === 2) { // Top
+                x = camera.x + Math.random() * canvas.width;
+                y = camera.y - buffer;
+            } else { // Bottom
+                x = camera.x + Math.random() * canvas.width;
+                y = camera.y + canvas.height + buffer;
+            }
             
             enemies.push({
                 x, y,
@@ -494,12 +512,18 @@
             ctx.fillStyle = '#1a1a2e';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             
+            // Apply camera transform
+            ctx.save();
+            ctx.translate(-camera.x, -camera.y);
+            
+            // Draw Aura
             ctx.beginPath();
             ctx.arc(player.x, player.y, player.auraRadius, 0, Math.PI * 2);
             ctx.strokeStyle = 'rgba(168, 85, 247, 0.3)';
             ctx.lineWidth = 2;
             ctx.stroke();
             
+            // Draw Rats
             rats.forEach(r => {
                 if (!r.alive) return;
                 ctx.beginPath();
@@ -508,6 +532,7 @@
                 ctx.fill();
             });
             
+            // Draw Enemies
             enemies.forEach(e => {
                 ctx.beginPath();
                 ctx.arc(e.x, e.y, e.radius, 0, Math.PI * 2);
@@ -519,6 +544,7 @@
                 ctx.fillRect(e.x - 10, e.y - 15, 20 * (e.hp / e.maxHp), 3);
             });
             
+            // Draw Player
             ctx.beginPath();
             ctx.arc(player.x, player.y, 15, 0, Math.PI * 2);
             ctx.fillStyle = '#ff0000';
@@ -526,6 +552,15 @@
             ctx.strokeStyle = '#fff';
             ctx.lineWidth = 3;
             ctx.stroke();
+            
+            ctx.beginPath();
+            ctx.arc(player.x, player.y, 20, 0, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(255, 0, 0, 0.3)';
+            ctx.lineWidth = 5;
+            ctx.stroke();
+            
+            // Restore camera transform
+            ctx.restore();
         }
 
         function updateUI() {
