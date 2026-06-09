@@ -227,7 +227,7 @@
         }
 
         function setupJoystick() {
-            const joystick = document.getElementById('joystick');
+            const joystickEl = document.getElementById('joystick');
             const knob = document.getElementById('joystickKnob');
             let isDragging = false;
 
@@ -242,7 +242,7 @@
                 e.preventDefault();
                 e.stopPropagation();
                 
-                const rect = joystick.getBoundingClientRect();
+                const rect = joystickEl.getBoundingClientRect();
                 const cx = rect.left + rect.width / 2;
                 const cy = rect.top + rect.height / 2;
                 const clientX = e.touches ? e.touches[0].clientX : e.clientX;
@@ -261,23 +261,23 @@
                 knob.style.left = (50 + (dx / (rect.width/2)) * 50) + '%';
                 knob.style.top = (50 + (dy / (rect.height/2)) * 50) + '%';
                 
-                joystick.dx = dx / maxDist;
-                joystick.dy = dy / maxDist;
+                window.joystickDx = dx / maxDist;
+                window.joystickDy = dy / maxDist;
             };
             
             const handleEnd = () => {
                 isDragging = false;
-                joystick.dx = 0;
-                joystick.dy = 0;
+                window.joystickDx = 0;
+                window.joystickDy = 0;
                 knob.style.left = '50%';
                 knob.style.top = '50%';
             };
 
-            joystick.addEventListener('mousedown', handleStart);
+            joystickEl.addEventListener('mousedown', handleStart);
             document.addEventListener('mousemove', handleMove);
             document.addEventListener('mouseup', handleEnd);
             
-            joystick.addEventListener('touchstart', handleStart, {passive: false});
+            joystickEl.addEventListener('touchstart', handleStart, {passive: false});
             document.addEventListener('touchmove', handleMove, {passive: false});
             document.addEventListener('touchend', handleEnd);
         }
@@ -359,9 +359,9 @@
             if (keys['a'] || keys['arrowleft']) mx -= 1;
             if (keys['d'] || keys['arrowright']) mx += 1;
             
-            if (joystick.dx !== 0 || joystick.dy !== 0) {
-                mx = joystick.dx;
-                my = joystick.dy;
+            if (window.joystickDx !== 0 || window.joystickDy !== 0) {
+                mx = window.joystickDx;
+                my = window.joystickDy;
             }
             
             if (mx !== 0 || my !== 0) {
