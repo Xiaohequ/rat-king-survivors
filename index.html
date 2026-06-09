@@ -188,7 +188,19 @@
 
         // --- GAME STATE ---
         let canvas, ctx, gameState = 'start';
-        let player, rats = [], enemies = [], particles = [];
+        let player = null;
+        let rats = [], enemies = [], particles = [];
+        
+        function createPlayer() {
+            return {
+                x: canvas.width / 2,
+                y: canvas.height / 2,
+                hp: CONFIG.PLAYER_HP,
+                maxHp: CONFIG.PLAYER_HP,
+                speed: CONFIG.PLAYER_SPEED,
+                auraRadius: CONFIG.PLAYER_AURA
+            };
+        }
         let ratCount, ratDamage, ratSpeed, ratAttackRate;
         let survivalTime = 0, killCount = 0, waveNumber = 0;
         let enemySpawnTimer = 0, upgradeTimer = 0;
@@ -203,6 +215,9 @@
             
             resizeCanvas();
             window.addEventListener('resize', resizeCanvas);
+            
+            // Initialize player (needed for render)
+            player = createPlayer();
             
             setupControls();
             setupJoystick();
@@ -295,14 +310,7 @@
         }
 
         function resetGame() {
-            player = {
-                x: canvas.width / 2,
-                y: canvas.height / 2,
-                hp: CONFIG.PLAYER_HP,
-                maxHp: CONFIG.PLAYER_HP,
-                speed: CONFIG.PLAYER_SPEED,
-                auraRadius: CONFIG.PLAYER_AURA
-            };
+            player = createPlayer();
             
             rats = [];
             enemies = [];
@@ -496,16 +504,20 @@
 
         // --- RENDER ---
         function render() {
+            if (!player) return; // Safety check
+            
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.fillStyle = '#1a1a2e';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             
+            // Draw Aura
             ctx.beginPath();
             ctx.arc(player.x, player.y, player.auraRadius, 0, Math.PI * 2);
             ctx.strokeStyle = 'rgba(168, 85, 247, 0.3)';
             ctx.lineWidth = 2;
             ctx.stroke();
             
+            // Draw Rats
             rats.forEach(r => {
                 if (!r.alive) return;
                 ctx.beginPath();
@@ -514,6 +526,7 @@
                 ctx.fill();
             });
             
+            // Draw Enemies
             enemies.forEach(e => {
                 ctx.beginPath();
                 ctx.arc(e.x, e.y, e.radius, 0, Math.PI * 2);
@@ -525,12 +538,20 @@
                 ctx.fillRect(e.x - 10, e.y - 15, 20 * (e.hp / e.maxHp), 3);
             });
             
+            // Draw Player (bigger and brighter for visibility)
             ctx.beginPath();
-            ctx.arc(player.x, player.y, 10, 0, Math.PI * 2);
-            ctx.fillStyle = '#f59e0b';
+            ctx.arc(player.x, player.y, 15, 0, Math.PI * 2);
+            ctx.fillStyle = '#ff0000'; // Bright red
             ctx.fill();
-            ctx.strokeStyle = '#fff';
-            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+            
+            // Add a glow effect
+            ctx.beginPath();
+            ctx.arc(player.x, player.y, 20, 0, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(255, 0, 0, 0.3)';
+            ctx.lineWidth = 5;
             ctx.stroke();
         }
 
