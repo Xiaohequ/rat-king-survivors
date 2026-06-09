@@ -95,59 +95,12 @@
             background: linear-gradient(90deg, #ef4444, #f59e0b);
             transition: width 0.3s;
         }
-
-        /* Joystick Mobile */
-        #joystickZone {
-            position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 100px;
-            height: 100px;
-            background: rgba(168, 85, 247, 0.2);
-            border: 2px solid rgba(168, 85, 247, 0.5);
-            border-radius: 50%;
-            z-index: 60;
-            pointer-events: auto;
-        }
-        
-        @media (max-width: 400px) {
-            #joystickZone {
-                width: 80px;
-                height: 80px;
-                bottom: 15px;
-            }
-            #joystickKnob {
-                width: 32px;
-                height: 32px;
-            }
-        }
-        
-        @media (min-width: 768px) {
-            #joystickZone {
-                left: 30px;
-                transform: none;
-                width: 120px;
-                height: 120px;
-            }
-        }
-        #joystickKnob {
-            position: absolute;
-            width: 40px;
-            height: 40px;
-            background: rgba(168, 85, 247, 0.8);
-            border-radius: 50%;
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-        }
         
         @media (min-width: 768px) {
             .screen-overlay h1 { font-size: 2.5rem; }
             .btn { padding: 15px 40px; font-size: 1.5rem; }
             .hud-top { font-size: 14px; }
             .hp-bar { width: 200px; height: 20px; }
-            #joystickZone { width: 120px; height: 120px; }
-            #joystickKnob { width: 50px; height: 50px; }
         }
     </style>
 </head>
@@ -167,7 +120,6 @@
                     <div id="ratDisplay">Rats: 20</div>
                 </div>
             </div>
-            <div id="joystickZone"><div id="joystickKnob"></div></div>
         </div>
 
         <div id="startScreen" class="screen-overlay">
@@ -190,6 +142,46 @@
     </div>
 
     <script>
+        // --- JOYSTICK CREATION ---
+        function createJoystick() {
+            const joystickZone = document.createElement('div');
+            joystickZone.id = 'joystickZone';
+            joystickZone.style.cssText = `
+                position: fixed !important;
+                bottom: 30px !important;
+                left: 50% !important;
+                transform: translateX(-50%) !important;
+                width: 120px !important;
+                height: 120px !important;
+                background: rgba(168, 85, 247, 0.3) !important;
+                border: 3px solid rgba(168, 85, 247, 0.8) !important;
+                border-radius: 50% !important;
+                z-index: 99999 !important;
+                pointer-events: auto !important;
+                display: block !important;
+                visibility: visible !important;
+                opacity: 1 !important;
+            `;
+            
+            const joystickKnob = document.createElement('div');
+            joystickKnob.id = 'joystickKnob';
+            joystickKnob.style.cssText = `
+                position: absolute !important;
+                width: 50px !important;
+                height: 50px !important;
+                background: rgba(168, 85, 247, 0.9) !important;
+                border-radius: 50% !important;
+                top: 50% !important;
+                left: 50% !important;
+                transform: translate(-50%, -50%) !important;
+            `;
+            
+            joystickZone.appendChild(joystickKnob);
+            document.body.appendChild(joystickZone);
+            
+            return { zone: joystickZone, knob: joystickKnob };
+        }
+
         // --- CONFIGURATION ---
         let CONFIG = {
             PLAYER_SPEED: 2.5,
@@ -212,7 +204,14 @@
         let canvas, ctx, gameState = 'start';
         let player = null;
         let rats = [], enemies = [], particles = [];
-        
+        let ratCount, ratDamage, ratSpeed, ratAttackRate;
+        let survivalTime = 0, killCount = 0, waveNumber = 0;
+        let enemySpawnTimer = 0, upgradeTimer = 0;
+        let keys = {};
+        let joystick = { active: false, dx: 0, dy: 0 };
+        let lastTime = 0;
+        let joystickElements = null;
+
         function createPlayer() {
             return {
                 x: canvas.width / 2,
@@ -223,12 +222,6 @@
                 auraRadius: CONFIG.PLAYER_AURA
             };
         }
-        let ratCount, ratDamage, ratSpeed, ratAttackRate;
-        let survivalTime = 0, killCount = 0, waveNumber = 0;
-        let enemySpawnTimer = 0, upgradeTimer = 0;
-        let keys = {};
-        let joystick = { active: false, dx: 0, dy: 0 };
-        let lastTime = 0;
 
         // --- INITIALIZATION ---
         function init() {
@@ -237,6 +230,9 @@
             
             resizeCanvas();
             window.addEventListener('resize', resizeCanvas);
+            
+            // Create joystick dynamically
+            joystickElements = createJoystick();
             
             // Initialize player (needed for render)
             player = createPlayer();
@@ -273,17 +269,19 @@
         }
 
         function setupJoystick() {
-            const zone = document.getElementById('joystickZone');
-            const knob = document.getElementById('joystickKnob');
+            const zone = joystickElements.zone;
+            const knob = joystickElements.knob;
             let isDragging = false;
 
             const handleStart = (e) => {
                 isDragging = true;
                 e.preventDefault();
+                e.stopPropagation();
             };
             const handleMove = (e) => {
                 if (!isDragging) return;
                 e.preventDefault();
+                e.stopPropagation();
                 const rect = zone.getBoundingClientRect();
                 const cx = rect.left + rect.width / 2;
                 const cy = rect.top + rect.height / 2;
@@ -526,7 +524,7 @@
 
         // --- RENDER ---
         function render() {
-            if (!player) return; // Safety check
+            if (!player) return;
             
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.fillStyle = '#1a1a2e';
@@ -560,16 +558,15 @@
                 ctx.fillRect(e.x - 10, e.y - 15, 20 * (e.hp / e.maxHp), 3);
             });
             
-            // Draw Player (bigger and brighter for visibility)
+            // Draw Player
             ctx.beginPath();
             ctx.arc(player.x, player.y, 15, 0, Math.PI * 2);
-            ctx.fillStyle = '#ff0000'; // Bright red
+            ctx.fillStyle = '#ff0000';
             ctx.fill();
             ctx.strokeStyle = '#ffffff';
             ctx.lineWidth = 3;
             ctx.stroke();
             
-            // Add a glow effect
             ctx.beginPath();
             ctx.arc(player.x, player.y, 20, 0, Math.PI * 2);
             ctx.strokeStyle = 'rgba(255, 0, 0, 0.3)';
